@@ -1,0 +1,9 @@
+L'UNION — GENERATEUR DE BESTIAIRE (PWA)
+
+1. Décompresser l'archive.
+2. Héberger le contenu du dossier sur un site HTTPS (par exemple GitHub Pages ou Netlify).
+3. Ouvrir l'adresse sur Android avec Chrome puis choisir 'Installer l'application' ou 'Ajouter à l'écran d'accueil'.
+4. Ouvrir une première fois en ligne pour mettre en cache les fichiers. Les utilisations suivantes fonctionnent hors connexion.
+5. Les créatures sont sauvegardées localement sur l'appareil. Utiliser Exporter pour en conserver une copie.
+
+L'ouverture directe du fichier index.html ne permet pas l'installation PWA ni le service worker.
