@@ -1,710 +1,145 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>L'Union — Générateur de bestiaire</title>
-<style>
-:root{
- color-scheme:dark;
- --bg:#10151d;
- --panel:#1d2632;
- --edge:#3b4959;
- --gold:#dbbd80;
- --text:#f2efe7;
- --muted:#b2bdca;
-}
-*{box-sizing:border-box}
-body{
- margin:0;padding:18px;
- background:var(--bg);color:var(--text);
- font:15px/1.55 system-ui,Arial,sans-serif;
-}
-main{max-width:940px;margin:auto}
-h1,h2{font-family:Georgia,serif}
-h1{color:var(--gold);font-size:2.6rem;margin:0}
-h2{color:var(--gold);margin:0 0 12px}
-h3{margin:0 0 8px}
-header{padding:20px 0}
-header p,.small{color:var(--muted)}
-.panel{
- background:var(--panel);
- border:1px solid var(--edge);
- border-radius:14px;
- padding:20px;margin:15px 0;
-}
-.grid{
- display:grid;
- grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
- gap:15px;
-}
-label{display:block;font-weight:650;margin-bottom:6px}
-select,input{
- width:100%;padding:11px;
- background:#111923;color:white;
- border:1px solid var(--edge);
- border-radius:8px;font:inherit;
-}
-button{
- padding:12px 18px;
- background:var(--gold);color:#171717;
- border:0;border-radius:8px;
- font-weight:750;cursor:pointer;
-}
-button.secondary{
- background:#344254;color:white;
-}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-.trait,.mutation{
- border:1px solid var(--edge);
- border-radius:10px;padding:14px;margin:10px 0;
- background:#17202a;
-}
-.trait strong,.mutation strong{color:var(--gold)}
-.meta{color:var(--muted);font-size:.84rem}
-.pill{
- display:inline-block;
- border:1px solid var(--edge);
- padding:3px 10px;border-radius:20px;
- margin:4px 5px 4px 0;
-}
-.total{font-size:2rem;color:var(--gold);font-weight:bold}
-.hidden{display:none}
-@media print{
- :root{color-scheme:light}
- body{background:white;color:black}
- .panel,.trait,.mutation{
-  background:white;color:black;border-color:#aaa;
- }
- h1,h2,.trait strong,.mutation strong,.total{color:black}
- .meta,.small{color:#444}
- .controls,.actions{display:none}
-}
-</style>
-<link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#10151d">
-<link rel="icon" href="./icons/icon-192.png">
-</head>
-<body>
-<main>
-<header>
-<h1>L'UNION</h1>
-<p>Générateur de bestiaire — Outil du Maître de Jeu</p>
-</header>
-
-<section class="panel controls">
-<h2>Créer une créature</h2>
-<div class="grid">
-<div>
-<label for="tier">Palier de menace</label>
-<select id="tier">
-<option value="1">Tier 1 — 1 à 2 mutations</option>
-<option value="2">Tier 2 — 3 à 4 mutations</option>
-<option value="3">Tier 3 — 5 à 7 mutations</option>
-<option value="4">Tier 4 — 8 à 10 mutations</option>
-</select>
-</div>
-<div>
-<label for="family">Famille</label>
-<select id="family">
-<option value="">Aléatoire</option>
-</select>
-</div>
-<div>
-<label for="size">Gabarit</label>
-<select id="size">
-<option value="light">Léger / Véloce</option>
-<option value="medium" selected>Moyen / Standard</option>
-<option value="heavy">Lourd / Colossal</option>
-</select>
-</div>
-<div>
-<label for="base">Vitalité de base</label>
-<input id="base" type="number" min="23" max="25" value="24">
-</div>
-</div>
-<p class="small">
-Une région anatomique peut recevoir deux mutations
-au maximum. Les doublons exacts sont interdits.
-</p>
-<div class="actions">
-<button id="generate">⚄ Générer la créature</button>
-</div>
-</section>
-
-<section id="result" class="hidden">
-<div class="panel">
-<h2 id="creatureName"></h2>
-<div id="summary"></div>
-<div class="grid">
-<div>
-<h3>Avantage de famille</h3>
-<div class="trait">
-<strong id="advName"></strong>
-<p id="advEffect"></p>
-<div class="meta" id="advRoll"></div>
-</div>
-</div>
-<div>
-<h3>Désavantage de famille</h3>
-<div class="trait">
-<strong id="disName"></strong>
-<p id="disEffect"></p>
-<div class="meta" id="disRoll"></div>
-</div>
-</div>
-</div>
-</div>
-
-<div class="panel">
-<h2>Mutations</h2>
-<div id="mutationList"></div>
-</div>
-
-<div class="panel">
-<h2>Vitalité</h2>
-<p id="vitalityDetail"></p>
-<div class="total" id="vitalityTotal"></div>
-<p class="small">
-Réserve commune de points de vie et de mana.
-Les pouvoirs magiques consomment cette Vitalité.
-</p>
-</div>
-
-<div class="actions">
-<button id="again">↻ Nouvelle créature</button>
-<button class="secondary" id="print">
-Imprimer / Enregistrer en PDF
-</button>
-<button class="secondary" id="saveCreature">Sauvegarder la créature</button>
-</div>
-</section>
-<section class="panel" id="savedPanel"><h2>Bestiaire sauvegardé</h2><p class="small">Créatures conservées sur cet appareil. Pense à exporter tes sauvegardes avant d'effacer les données du navigateur.</p><div class="actions"><button class="secondary" id="exportSaved">Exporter les sauvegardes</button><button class="secondary" id="importSaved">Importer des sauvegardes</button><input type="file" id="importFile" accept="application/json,.json" hidden></div><div id="savedList"></div></section>
-</main>
-
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>L’Union — Générateur de bestiaire</title><style>
+:root{color-scheme:dark;--bg:#10151d;--panel:#1d2632;--edge:#3b4959;--gold:#dbbd80;--text:#f2efe7;--muted:#b2bdca}*{box-sizing:border-box}body{margin:0;padding:18px;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,Arial,sans-serif}main{max-width:990px;margin:auto}h1,h2{font-family:Georgia,serif}h1{color:var(--gold);font-size:2.5rem;margin:0}h2{color:var(--gold);margin:0 0 12px}h3{margin:8px 0}header{padding:14px 0}.muted,.meta{color:var(--muted)}.meta{font-size:.86rem}.panel{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:20px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}label{display:block;font-weight:650;margin-bottom:6px}select,input{width:100%;padding:11px;background:#111923;color:white;border:1px solid var(--edge);border-radius:8px;font:inherit}button{padding:11px 16px;background:var(--gold);color:#171717;border:0;border-radius:8px;font-weight:750;cursor:pointer}button.secondary{background:#344254;color:white}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}.trait,.mutation{border:1px solid var(--edge);border-radius:10px;padding:13px;margin:9px 0;background:#17202a}.trait strong,.mutation strong{color:var(--gold)}.pill{display:inline-block;border:1px solid var(--edge);padding:3px 10px;border-radius:20px;margin:3px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{text-align:center;background:#141c26;border:1px solid var(--edge);border-radius:10px;padding:12px}.stat b{display:block;color:var(--gold);font-size:2rem}.hidden{display:none}.suggestion{display:block;margin:8px 0;padding:9px;border:1px solid var(--edge);border-radius:8px;background:#141c26}.suggestion button{font-size:.83rem;padding:5px 10px;margin-right:8px}.library-entry{display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid var(--edge);padding:9px 0}.library-entry div{display:flex;gap:5px;flex-wrap:wrap}small{color:var(--muted)}@media(max-width:500px){.stats{gap:5px}.stat{padding:8px}.stat b{font-size:1.6rem}}@media print{:root{color-scheme:light}body{background:white;color:black}.panel,.trait,.mutation,.stat{background:white;color:black;border-color:#aaa}h1,h2,.trait strong,.mutation strong,.stat b{color:black}.meta,.muted,small{color:#444}.controls,.actions,.no-print{display:none!important}}
+</style><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#10151d"><meta name="application-name" content="L’Union Bestiaire"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="./icons/icon-192.png"></head><body><main><header><h1>L’UNION</h1><p class="muted">Générateur de bestiaire — Outil du Maître de Jeu · Hors connexion</p></header>
+<section class="panel controls"><h2>Création</h2><div class="grid"><div><label for="tier">Tier</label><select id="tier"><option value="1">Tier 1 — 1 à 2 mutations</option><option value="2">Tier 2 — 3 à 4 mutations</option><option value="3">Tier 3 — 5 à 7 mutations</option><option value="4">Tier 4 — 8 à 10 mutations</option></select></div><div><label for="family">Famille</label><select id="family"><option value="">Aléatoire</option></select></div><div><label for="base">Vitalité de base</label><select id="base"><option value="20">20 PV — +4 à répartir</option><option value="22">22 PV — +3 à répartir</option><option value="24" selected>24 PV — +2 à répartir</option><option value="26">26 PV — +1 à répartir</option><option value="28">28 PV — +0 à répartir</option></select></div><div><label for="nameMode">Nom individuel</label><select id="nameMode"><option value="random">Proposer un nom aléatoire</option><option value="manual">Je choisis le nom</option></select></div><div><label for="inputName">Nom souhaité (facultatif)</label><input id="inputName" placeholder="Ex. : Azrakh le Dévoreur"></div></div><div class="actions"><button id="generate">⚄ Générer une créature</button></div><p class="meta">Les propositions d’espèces sont des rapprochements folkloriques, jamais des identifications certaines. Deux mutations maximum par région, sans doublon exact.</p></section>
+<section id="result" class="hidden"><section class="panel"><h2>Identité de la créature</h2><div class="grid"><div><label for="creatureName">Nom individuel</label><input id="creatureName" placeholder="Nom de la créature"></div><div><label for="speciesName">Espèce (librement modifiable)</label><input id="speciesName" placeholder="Espèce folklorique ou personnelle"></div></div><p id="summary" class="muted"></p><h3>Espèces mythologiques suggérées</h3><div id="suggestions"></div><p class="meta">Les traditions citées servent de référence culturelle. La présence de quelques mutations similaires ne garantit pas une correspondance anatomique complète.</p></section><section class="panel"><h2>Caractéristiques</h2><div class="stats"><div class="stat"><span>Vitalité</span><b id="vitalityTotal">—</b><small>PV / Mana</small></div><div class="stat"><span>Agilité</span><b id="agility">—</b><small>Bonus</small></div><div class="stat"><span>Instinct</span><b id="instinct">—</b><small>Bonus</small></div></div><p class="meta" id="vitalityDetail"></p></section><section class="panel"><h2>Traits de famille</h2><div class="grid"><div><h3>Avantage</h3><div class="trait"><strong id="advName"></strong><p id="advEffect"></p><small id="advRoll"></small></div></div><div><h3>Désavantage</h3><div class="trait"><strong id="disName"></strong><p id="disEffect"></p><small id="disRoll"></small></div></div></div></section><section class="panel"><h2>Mutations</h2><div id="mutationList"></div><p id="xpTotal" class="meta"></p></section><div class="actions no-print"><button id="save">Enregistrer dans mon bestiaire</button><button id="again" class="secondary">Nouvelle créature</button><button id="print" class="secondary">Imprimer / PDF</button><button id="export" class="secondary">Exporter la fiche JSON</button></div><p id="status" role="status" class="meta no-print"></p></section>
+<section class="panel no-print"><h2>Mon bestiaire sauvegardé</h2><p class="meta">Enregistré uniquement dans ce navigateur, sur cet appareil. Pour conserver une copie indépendante, exporte les fiches JSON. Effacer les données du navigateur peut supprimer cette bibliothèque.</p><div class="grid"><div><label for="search">Rechercher par nom ou espèce</label><input id="search" placeholder="Rechercher…"></div><div><label for="importFile">Importer une fiche JSON</label><input id="importFile" type="file" accept=".json,application/json"></div></div><div id="library"></div></section></main>
 <script>
-"use strict";
-
-/*
-FAMILLES
-Chaque ligne :
-[nom avantage, effet avantage,
- nom désavantage, effet désavantage]
-*/
-
+'use strict';
 const traits={
-"Petit Peuple":[
-["Passe-Muraille Végétal","Franchit ronces et racines sans blessure ni ralentissement.","Brûlure du Fer Froid","Subit le double de dégâts face aux armes en fer pur."],
-["Escampette Sylvestre","Après une esquive réussie, se téléporte à 3 m dans l'ombre d'un végétal.","Curiosité Maladive","Ne peut ignorer un objet scintillant, une énigme ou un son inconnu."],
-["Poudre d'Illusion","Génère un double illusoire ou un son trompeur une fois par combat.","Lien du Serment","Ne peut transgresser une promesse formulée à voix haute."],
-["Insaisissable","Immunité aux bousculades, renversements et empoignades.","Fragilité Cristalline","Un coup critique physique reçu inflige l'état étourdi pendant un tour."],
-["Aura d'Apaisement","Les animaux naturels refusent de l'attaquer au premier tour.","Terreur du Foyer","Refuse d'entrer dans un lieu habité sans invitation formelle."],
-["Légèreté Féerique","Ne déclenche aucun piège à pression et ne laisse aucune trace au sol.","Sensibilité au Sel","Une ligne de sel pur forme une frontière infranchissable."]
-],
-"Chiméroïdes":[
-["Métabolisme Double","Immunité complète aux poisons et maladies ordinaires.","Divergence Motrice","Un échec critique fait perdre son action mineure."],
-["Riposte Composite","Attaque réflexe gratuite avec un membre secondaire après un coup reçu au contact.","Frénésie Vorace","Dévore une proie abattue si ses PV sont inférieurs à la moitié."],
-["Résistance Réactive","Après avoir subi un élément, les dégâts suivants de cet élément sont divisés par deux.","Bruit de Déplacement","Malus permanent en discrétion ; ses mouvements font craquer le décor."],
-["Instinct de Meute Solitaire","Bonus de précision lorsqu'elle est encerclée par plusieurs ennemis.","Acharnement Aveugle","Incapable de battre en retraite une fois blessée."],
-["Rugissement Territorial","Force un test de moral chez les adversaires au début du combat.","Couture Vulnérable","Une zone de jonction sensible rend les coups ciblés critiques."],
-["Esprit Bicéphale","Immunité aux charmes mentaux et suggestions magiques.","Peur du Brasier","Recule d'au moins 3 mètres face aux feux vifs."]
-],
-"Humanoïdes":[
-["Usage d'Outils","Utilise armes forgées, arcs, boucliers et armures.","Panique Décapitée","La mort du chef de groupe force un jet de déroute immédiat."],
-["Cohésion de Troupe","Bonus aux dégâts pour chaque congénère engagé sur la même cible.","Provocation Facile","Ne peut ignorer un défi en duel ou une insulte en combat."],
-["Rancœur Martiale","Bonus de dégâts contre l'ennemi qui lui a porté le dernier coup.","Crainte du Prodige","Recule ou hésite devant les manifestations magiques spectaculaires."],
-["Combat Déloyal","Projette sable ou obstacles sans dépenser d'action majeure.","Matériel Rudimentaire","L'équipement de fortune peut se briser lors d'un échec critique."],
-["Cri de Harde","Dissipe la panique chez ses alliés proches une fois par affrontement.","Gourmandise Nocive","Sensible aux appâts empoisonnés mélangés à l'alcool ou la viande."],
-["Armure Adaptée","Confectionne des pièces de cuirasse rustiques octroyant une protection temporaire.","Esprit Borné","Malus face aux énigmes, pièges à déclencheur et ruses verbales."]
-],
-"Liés à la Mort":[
-["Physiologie Inerte","Immunité aux saignements, à l'asphyxie, aux poisons et à la fatigue.","Anathème Consacré","Dégâts doublés face aux armes bénies et sorts de lumière pure."],
-["Attouchement Sépulcral","Les attaques au contact réduisent la vitesse de déplacement adverse.","Flétrissure Solaire","En plein soleil, malus continu à toutes les actions physiques."],
-["Insensibilité Algique","Ignore les malus de blessures ; efficacité constante jusqu'à 0 PV.","Lenteur Mécanique","Vitesse de course réduite ; incapable de bondir ou franchir avec agilité."],
-["Présence Funèbre","Réduit l'efficacité des soins magiques prodigués aux ennemis proches.","Conditionnement Servile","Incapable d'initiative autonome en dehors des ordres directs reçus."],
-["Sens de la Fin","Localise les créatures blessées ou agonisantes dans la zone.","Répugnance Olfactive","Odeur cadavérique interdisant toute surprise face aux cibles à bon odorat."],
-["Miasme Terminal","Libère une nuée toxique ou un liquide corrosif à son anéantissement.","Terreur Incendiaire","Les flammes la forcent à consacrer son tour à étouffer le feu."]
-],
-"Métamorphes":[
-["Mutation Mimétique","Adopte une posture véloce ou massive en action rapide.","Faim Insatiable","Doit consommer de la chair crue sous peine de perdre sa cohérence biologique."],
-["Imitation Humanoïde","Reproduit l'aspect et la voix d'une cible touchée récemment.","Fléau de l'Argent","Le contact de l'argent pur interdit toute transformation et brûle les chairs."],
-["Cicatrisation de Mue","Reprendre sa forme de base soigne une partie de ses blessures.","Soumission Cyclique","Forcé de se métamorphoser lors de phases fixes."],
-["Déformation Osseuse","Compresse son squelette pour franchir barreaux et conduits étroits.","Choc Post-Mue","Reste vulnérable et privé d'action défensive le tour suivant une mue."],
-["Aura Neutre","Indétectable aux sorts de détection magique ordinaire.","Résidus Animaux","Conserve des tics et réflexes bestiaux involontaires sous forme humaine."],
-["Griffes Polyvalentes","Choisit à chaque frappe son type de dégâts : tranchant, perforant ou contondant.","Déchirure d'Équipement","Les mues détruisent vêtements, armures et sacoches."]
-],
-"Entités Élémentaires":[
-["Corps Composé","Immunité intégrale aux attaques de la nature de son élément.","Vulnérabilité Antagoniste","Subit des dégâts doublés face à l'élément strictement opposé."],
-["Infusion Pure","Attaques physiques infligeant des dégâts élémentaires ignorant les armures.","Dépérissement Hors Milieu","Perd de sa vitalité maximale si elle reste éloignée de sa matière native."],
-["Recharge de Milieu","Régénère sa vitalité au contact direct de son élément naturel.","Incompatibilité Matérielle","Incapable de manier des armes ou d'activer des objets façonnés."],
-["Dispersion Réflexe","Se dissout temporairement dans son élément pour briser une prise.","Cécité Émotionnelle","Incapable d'intégrer pitié, ruse ou reddition."],
-["Rayonnement Passif","Inflige des dégâts passifs aux adversaires au contact au début de leur tour.","Instabilité Arcanique","Les sorts de dissipation magique lui infligent des blessures directes."],
-["Matière Inanimée","Immunité totale au poison, à l'asphyxie et aux saignements.","Confinement Élémentaire","Peut être enfermée dans un cercle tracé avec sa matière opposée."]
-],
-"Rejetons Aberrants":[
-["Effroi Visuel","Croiser son regard applique un malus immédiat aux attaques adverses.","Rejet Géométrique","Les symboles rituels purs et reliques géométriques lui causent douleur."],
-["Parasitisme Psychique","Onde cérébrale rompant la concentration des lanceurs de sorts.","Dysharmonie Aiguë","Les sons d'une pureté acoustique parfaite l'étourdissent."],
-["Organes Déportés","Les coups critiques physiques sont réduits à des coups ordinaires.","Consomption de Pensées","Doit absorber des souvenirs sous peine de liquéfaction corporelle."],
-["Élongation Spatiale","Portée de corps-à-corps étendue de 2 mètres sans déplacement.","Anomalie Totale","Déclenche une hostilité immédiate chez tous les êtres vivants."],
-["Contamination Oculaire","Toucher une cible permet d'intercepter temporairement sa vision.","Vulnérabilité Psionique","Les attaques de force pure ou d'énergie mentale sont doublées."],
-["Égide Abyssale","Résistance naturelle face à la majorité des sorts conventionnels.","Répulsion Solaire","La lumière naturelle vive réduit sa perception et sa vitesse d'un tiers."]
-],
-"Forgés & Artificiels":[
-["Armature Minérale","Immunité à la peur, aux illusions, aux poisons et à la douleur.","Lourdeur Incommensurable","Coule immédiatement à pic dans l'eau et annule toute discrétion."],
-["Plaquage Renforcé","Réduction fixe sur tout impact physique direct ordinaire.","Sensibilité Voltaïque / Acide","Vulnérable à la foudre et aux acides."],
-["Activité Continue","Absence totale de sommeil, de respiration et de fatigue.","Protocole Rigide","Applique des ordres stricts ; incapable d'improviser une stratégie nouvelle."],
-["Percée d'Inertie","Détruit sans jet de force portes, barricades et parois de bois.","Cœur Accessible","Un cristal ou accumulateur exposé peut être atteint par un coup ciblé."],
-["Absence d'Hésitation","Insensible aux pertes de son camp et aux menaces d'anéantissement.","Restauration Complexe","Les soins magiques sont inopérants ; requiert des réparations manuelles."],
-["Intégration d'Outils","Armes et mécanismes montés sur son châssis, impossibles à désarmer.","Cadence Retardée","Agit systématiquement en dernière position dans l'ordre du tour."]
-],
-"Draconiques & Reptiliens":[
-["Écailles Déviatrices","Les projectiles légers ricochent sans percer son épiderme.","Torpeur Glaciale","Le froid intense divise par deux ses réflexes et sa vitesse."],
-["Majesté Terrifiante","Bonus d'intimidation forçant les adversaires plus petits à hésiter.","Obsession des Trésors","Peut être détournée de son assaut par des gemmes ou de l'or."],
-["Léthargie Métabolique","Peut jeûner des mois entiers sans dégradation de vigueur physique.","Écaille Déficiente","Une écaille fêlée rend les coups ciblés quatre fois plus dangereux."],
-["Queue de Balayage","Frappe caudale pouvant faucher deux cibles adjacentes.","Focalisation d'Orgueil","S'acharne exclusivement sur l'adversaire qui lui a infligé un affront."],
-["Fierté Sanguine","Volonté accrue pour briser les tentatives de manipulation magique.","Rayon de Virage Ample","Inertie lourde empêchant les virages serrés en course ou en vol."],
-["Férocité Moribonde","Dégâts physiques augmentés de moitié sous 25 % de ses PV.","Période de Mue","Perte cyclique des écailles laissant la chair vulnérable."]
-],
-"Créatures Abyssales & Insectoïdes":[
-["Déplacement Mural","Court sur parois verticales et plafonds sans jet de compétence.","Photophobie Aiguë","La lumière vive des torches et du jour désoriente ses capteurs visuels."],
-["Mandibules de Choc","Pince capable de cisailler mailles métalliques et hampes de lance.","Asphyxie par Vapeurs","Les fumées âcres ou soufrées asphyxient rapidement ses stigmates."],
-["Sens Vibratoire","Localise les pas au sol sur 50 mètres même dans le noir.","Motricité Rudimentaire","Schéma binaire de prédation ou fuite, incapable de ruse."],
-["Instinct d'Essaim","Ignore l'impact des blessures si des congénères combattent au contact.","Vulnérabilité Acoustique","Les sons métalliques stridents perturbent ses antennes sensorielles."],
-["Projection de Glu","Expulse une bile collante immobilisant une cible à 5 mètres.","Spongiosité Interne","Une fois la cuticule percée, ses chairs internes sont spongieuses."],
-["Carapace Articulée","Résistance complète aux chutes et aux pressions contondantes.","Asservissement Chimique","Suit aveuglément les pistes de phéromones, même piégées."]
-]
+'Petit Peuple':[
+['Passe-Muraille Végétal','Franchit ronces et racines sans blessure ni ralentissement.','Brûlure du Fer Froid','Subit le double de dégâts face aux armes en fer pur.'],
+['Escampette Sylvestre','Après une esquive réussie, se téléporte à 3 m dans l’ombre d’un végétal.','Curiosité Maladive','Ne peut ignorer un objet scintillant, une énigme ou un son inconnu.'],
+['Poudre d’Illusion','Génère un double illusoire ou un son trompeur une fois par combat.','Lien du Serment','Ne peut transgresser une promesse formulée à voix haute.'],
+['Insaisissable','Immunité aux bousculades, renversements et empoignades.','Fragilité Cristalline','Tout coup critique physique reçu inflige l’état étourdi pendant un tour.'],
+['Aura d’Apaisement','Les animaux naturels refusent de l’attaquer au premier tour.','Terreur du Foyer','Refuse d’entrer dans un lieu habité sans invitation formelle.'],
+['Légèreté Féerique','Ne déclenche aucun piège à pression et ne laisse aucune trace au sol.','Sensibilité au Sel','Une simple ligne de sel pur forme une frontière infranchissable.']],
+'Chiméroïdes':[
+['Métabolisme Double','Immunité complète aux poisons et maladies ordinaires.','Divergence Motrice','Un échec critique fait perdre son action mineure.'],
+['Riposte Composite','Attaque réflexe gratuite avec un membre secondaire après un coup reçu au contact.','Frénésie Vorace','Dévore une proie abattue si ses PV sont inférieurs à la moitié.'],
+['Résistance Réactive','Subir un élément divise par deux les dégâts suivants de ce même élément.','Bruit de Déplacement','Malus permanent en discrétion ; ses mouvements font craquer le décor.'],
+['Instinct de Meute Solitaire','Bonus de précision lorsqu’elle est encerclée par plusieurs ennemis.','Acharnement Aveugle','Incapable de battre en retraite une fois blessée.'],
+['Rugissement Territorial','Force un test de moral chez les adversaires au début du combat.','Couture Vulnérable','Une zone de jonction sensible rend les coups ciblés critiques.'],
+['Esprit Bicéphale','Immunité aux charmes mentaux et suggestions magiques.','Peur du Brasier','Recule d’au moins 3 mètres face aux feux vifs.']],
+'Humanoïdes':[
+['Usage d’Outils','Utilise armes forgées, arcs, boucliers et armures.','Panique Décapitée','La mort du chef de groupe force un jet de déroute immédiat.'],
+['Cohésion de Troupe','Bonus aux dégâts pour chaque congénère engagé sur la même cible.','Provocation Facile','Ne peut ignorer un défi en duel ou une insulte en combat.'],
+['Rancœur Martiale','Bonus de dégâts contre l’ennemi qui lui a porté le dernier coup.','Crainte du Prodige','Recule ou hésite devant les manifestations magiques spectaculaires.'],
+['Combat Déloyal','Projette sable ou obstacles sans dépenser d’action majeure.','Matériel Rudimentaire','L’équipement de fortune peut se briser lors d’un échec critique.'],
+['Cri de Harde','Dissipe la panique chez ses alliés proches une fois par affrontement.','Gourmandise Nocive','Sensible aux appâts empoisonnés mélangés à l’alcool ou la viande.'],
+['Armure Adaptée','Confectionne des pièces de cuirasse rustiques octroyant une protection temporaire.','Esprit Borné','Malus face aux énigmes, pièges à déclencheur et ruses verbales.']],
+'Liés à la Mort':[
+['Physiologie Inerte','Immunité aux saignements, à l’asphyxie, aux poisons et à la fatigue.','Anathème Consacré','Dégâts doublés face aux armes bénies et sorts de lumière pure.'],
+['Attouchement Sépulcral','Les attaques au contact réduisent la vitesse de déplacement adverse.','Flétrissure Solaire','En plein soleil, malus continu à toutes les actions physiques.'],
+['Insensibilité Algique','Ignore les malus de blessures ; efficacité constante jusqu’à 0 PV.','Lenteur Mécanique','Vitesse de course réduite ; incapable de bondir ou franchir avec agilité.'],
+['Présence Funèbre','Réduit l’efficacité des soins magiques prodigués aux ennemis proches.','Conditionnement Servile','Incapable d’initiative autonome en dehors des ordres directs reçus.'],
+['Sens de la Fin','Localise les créatures blessées ou agonisantes dans la zone.','Répugnance Olfactive','Odeur cadavérique interdisant toute surprise face aux cibles à bon odorat.'],
+['Miasme Terminal','Libère une nuée toxique ou un liquide corrosif à son anéantissement.','Terreur Incendiaire','Les flammes la forcent à consacrer son tour à étouffer le feu.']],
+'Métamorphes':[
+['Mutation Mimétique','Adopte une posture véloce ou massive en action rapide.','Faim Insatiable','Doit consommer de la chair crue sous peine de perdre sa cohérence biologique.'],
+['Imitation Humanoïde','Reproduit l’aspect et la voix d’une cible touchée récemment.','Fléau de l’Argent','Le contact de l’argent pur interdit toute transformation et brûle les chairs.'],
+['Cicatrisation de Mue','Reprendre sa forme de base soigne une partie de ses blessures.','Soumission Cyclique','Forcé de se métamorphoser lors de phases fixes.'],
+['Déformation Osseuse','Compresse son squelette pour franchir barreaux et conduits étroits.','Choc Post-Mue','Reste vulnérable et privé d’action défensive le tour suivant une mue.'],
+['Aura Neutre','Indétectable aux sorts de détection magique ordinaire.','Résidus Animaux','Conserve des tics et réflexes bestiaux involontaires sous forme humaine.'],
+['Griffes Polyvalentes','Choisit à chaque frappe son type de dégâts : tranchant, perforant ou contondant.','Déchirure d’Équipement','Les mues détruisent vêtements, armures et sacoches.']],
+'Entités Élémentaires':[
+['Corps Composé','Immunité intégrale aux attaques de la nature de son élément.','Vulnérabilité Antagoniste','Subit des dégâts doublés face à l’élément strictement opposé.'],
+['Infusion Pure','Attaques physiques infligeant des dégâts élémentaires ignorant les armures.','Dépérissement Hors Milieu','Perd de sa vitalité maximale si elle reste éloignée de sa matière native.'],
+['Recharge de Milieu','Régénère sa vitalité au contact direct de son élément naturel.','Incompatibilité Matérielle','Incapable de manier des armes ou d’activer des objets façonnés.'],
+['Dispersion Réflexe','Se dissout temporairement dans son élément pour briser une prise.','Cécité Émotionnelle','Incapable d’intégrer pitié, ruse ou reddition.'],
+['Rayonnement Passif','Inflige des dégâts passifs aux adversaires au contact au début de leur tour.','Instabilité Arcanique','Les sorts de dissipation magique lui infligent des blessures directes.'],
+['Matière Inanimée','Immunité totale au poison, à l’asphyxie et aux saignements.','Confinement Élémentaire','Peut être enfermée dans un cercle tracé avec sa matière opposée.']],
+'Rejetons Aberrants':[
+['Effroi Visuel','Croiser son regard applique un malus immédiat aux attaques adverses.','Rejet Géométrique','Les symboles rituels purs et reliques géométriques lui causent douleur.'],
+['Parasitisme Psychique','Onde cérébrale rompant la concentration des lanceurs de sorts.','Dysharmonie Aiguë','Les sons d’une pureté acoustique parfaite l’étourdissent.'],
+['Organes Déportés','Les coups critiques physiques sont réduits à des coups ordinaires.','Consomption de Pensées','Doit absorber des souvenirs sous peine de liquéfaction corporelle.'],
+['Élongation Spatiale','Portée de corps-à-corps étendue de 2 mètres sans déplacement.','Anomalie Totale','Déclenche une hostilité immédiate chez tous les êtres vivants.'],
+['Contamination Oculaire','Toucher une cible permet d’intercepter temporairement sa vision.','Vulnérabilité Psionique','Les attaques de force pure ou d’énergie mentale sont doublées.'],
+['Égide Abyssale','Résistance naturelle face à la majorité des sorts conventionnels.','Répulsion Solaire','La lumière naturelle vive réduit sa perception et sa vitesse d’un tiers.']],
+'Forgés & Artificiels':[
+['Armature Minérale','Immunité à la peur, aux illusions, aux poisons et à la douleur.','Lourdeur Incommensurable','Coule immédiatement à pic dans l’eau et annule toute discrétion.'],
+['Plaquage Renforcé','Réduction fixe sur tout impact physique direct ordinaire.','Sensibilité Voltaïque / Acide','Vulnérable à la foudre et aux acides.'],
+['Activité Continue','Absence totale de sommeil, de respiration et de fatigue.','Protocole Rigide','Applique des ordres stricts ; incapable d’improviser une stratégie nouvelle.'],
+['Percée d’Inertie','Détruit sans jet de force portes, barricades et parois de bois.','Cœur Accessible','Un cristal ou accumulateur exposé peut être atteint par un coup ciblé.'],
+['Absence d’Hésitation','Insensible aux pertes de son camp et aux menaces d’anéantissement.','Restauration Complexe','Les soins magiques sont inopérants ; requiert des réparations manuelles.'],
+['Intégration d’Outils','Armes et mécanismes montés sur son châssis, impossibles à désarmer.','Cadence Retardée','Agit systématiquement en dernière position dans l’ordre du tour.']],
+'Draconiques & Reptiliens':[
+['Écailles Déviatrices','Les projectiles légers ricochent sans percer son épiderme.','Torpeur Glaciale','Le froid intense divise par deux ses réflexes et sa vitesse.'],
+['Majesté Terrifiante','Bonus d’intimidation forçant les adversaires plus petits à hésiter.','Obsession des Trésors','Peut être détournée de son assaut par des gemmes ou de l’or.'],
+['Léthargie Métabolique','Peut jeûner des mois entiers sans dégradation de vigueur physique.','Écaille Déficiente','Une écaille fêlée rend les coups ciblés quatre fois plus dangereux.'],
+['Queue de Balayage','Frappe caudale pouvant faucher deux cibles adjacentes.','Focalisation d’Orgueil','S’acharne exclusivement sur l’adversaire qui lui a infligé un affront.'],
+['Fierté Sanguine','Volonté accrue pour briser les tentatives de manipulation magique.','Rayon de Virage Ample','Inertie lourde empêchant les virages serrés en course ou en vol.'],
+['Férocité Moribonde','Dégâts physiques augmentés de moitié sous 25 % de ses PV.','Période de Mue','Perte cyclique des écailles laissant la chair vulnérable.']],
+'Créatures Abyssales & Insectoïdes':[
+['Déplacement Mural','Court sur parois verticales et plafonds sans jet de compétence.','Photophobie Aiguë','La lumière vive des torches et du jour désoriente ses capteurs visuels.'],
+['Mandibules de Choc','Pince capable de cisailler mailles métalliques et hampes de lance.','Asphyxie par Vapeurs','Les fumées âcres ou soufrées asphyxient rapidement ses stigmates.'],
+['Sens Vibratoire','Localise les pas au sol sur 50 mètres même dans le noir.','Motricité Rudimentaire','Schéma binaire de prédation ou fuite, incapable de ruse.'],
+['Instinct d’Essaim','Ignore l’impact des blessures si des congénères combattent au contact.','Vulnérabilité Acoustique','Les sons métalliques stridents perturbent ses antennes sensorielles.'],
+['Projection de Glu','Expulse une bile collante immobilisant une cible à 5 mètres.','Spongiosité Interne','Une fois la cuticule percée, ses chairs internes sont spongieuses.'],
+['Carapace Articulée','Résistance complète aux chutes et aux pressions contondantes.','Asservissement Chimique','Suit aveuglément les pistes de phéromones, même piégées.']]
 };
-
-/*
-MUTATIONS
-Chaque entrée :
-[voie, branche, visibilité, coût XP, nom, effet]
-
-Voies : N naturelle, M magique
-Naturelles : A amélioration, S surnuméraire
-Magiques : O offensive, D défensive, N neutre
-Visibilité : V visible, I invisible
-*/
-
+// Mutation : voie N naturelle/M magique ; branche A amélioration/S surnuméraire/O offensive/D défensive/N neutre ; V visible/I invisible ; coût XP ; nom ; effet.
 const regions=[
-{
-name:"Yeux",bonus:2,m:[
-["N","A","V",2,"Œil de Faucon","Vise à très longue distance sans pénalité de portée."],
-["N","A","V",2,"Yeux de Chat","Voit distinctement dans le noir complet."],
-["N","A","V",2,"Vue Panoramique","Champ visuel élargi ; difficile à attaquer de dos."],
-["N","A","I",4,"Vision Thermique","Repère la chaleur à travers les cloisons légères."],
-["N","A","I",4,"Ralenti Réflexe","Anticipe les trajectoires et facilite l'esquive des tirs."],
-["N","S","V",4,"Troisième Œil","Œil frontal vigilant même pendant le sommeil."],
-["N","S","I",6,"Ocelles Internes","Perception intuitive prévenant les attaques surprises."],
-["M","O","V",5,"Regard de Pierre","Pétrifie un adversaire pendant un tour."],
-["M","O","V",5,"Rayon Ardent","Projette deux faisceaux brûlants."],
-["M","D","V",5,"Yeux Miroirs","Dévie les sorts lumineux ou aveuglants."],
-["M","D","V",5,"Flash Aveuglant","Aveugle les cibles proches."],
-["M","N","V",4,"Vue des Secrets","Révèle passages secrets et pièges mécaniques."],
-["M","O","I",7,"Mauvais Œil","Force l'échec du prochain jet d'une cible fixée."],
-["M","D","I",7,"Protection Mentale","Immunité aux illusions et manipulations mentales."],
-["M","N","I",6,"Vue des Fantômes","Détecte les esprits invisibles."]
-]},
-{
-name:"Bouche",bonus:2,m:[
-["N","A","V",2,"Mâchoire d'Acier","Broie une arme ou un bouclier."],
-["N","A","V",2,"Dents de Sabre","Morsure provoquant une blessure hémorragique."],
-["N","A","V",2,"Langue Préhensile","Saisit un objet à trois mètres."],
-["N","A","I",4,"Crachat Acide","Salive corrosive dissolvant métal et cuir."],
-["N","A","I",4,"Salive Venimeuse","Neurotoxine paralysante appliquée par morsure."],
-["N","S","V",4,"Double Mâchoire","Seconde mâchoire permettant une attaque surprise."],
-["N","S","I",6,"Poche de Venin","Réserve interne de venin supplémentaire."],
-["M","O","V",5,"Souffle de Dragon","Cône de flammes ésotériques."],
-["M","O","V",5,"Souffle de Givre","Nuage glacial immobilisant les appuis."],
-["M","D","V",5,"Morsure Absorbeuse","Draine la vitalité adverse pour se régénérer."],
-["M","D","V",5,"Rugissement Barrière","Onde vocale repoussant les assaillants."],
-["M","N","V",4,"Parler Bestial","Communique avec les animaux ordinaires."],
-["M","O","I",7,"Cri de Banshee","Onde sonore provoquant panique et surdité."],
-["M","D","I",7,"Mot de Garde","Annule un sort adverse en cours."],
-["M","N","I",6,"Chant Envoûtant","Charme une cible par modulation vocale."]
-]},
-{
-name:"Oreilles",bonus:2,m:[
-["N","A","V",2,"Grandes Oreilles","Entend à travers portes et cloisons."],
-["N","A","V",2,"Radar Acoustique","Détecte les cibles invisibles au bruit."],
-["N","A","I",4,"Filtre Sélectif","Isole un signal sonore dans une foule."],
-["N","A","I",4,"Écholocation","Cartographie les lieux dans le noir."],
-["N","S","V",4,"Pavillons Secondaires","Écoute dans plusieurs directions."],
-["N","S","I",6,"Récepteurs Sismiques","Détecte les pas lourds à distance."],
-["M","O","V",5,"Détonation Sonore","Onde acoustique assommant les ennemis."],
-["M","D","V",5,"Bulle de Silence","Dôme absorbant les sons."],
-["M","N","V",4,"Oreilles Féeriques","Comprend toutes les langues parlées."],
-["M","O","I",7,"Écho Douloureux","Renvoie un sort verbal contre son lanceur."],
-["M","D","I",7,"Calme Absolu","Immunité aux provocations et peurs auditives."],
-["M","N","I",6,"Écoute Astrale","Capte les échanges d'une pièce fermée ou d'un plan contigu."]
-]},
-{
-name:"Nez",bonus:2,m:[
-["N","A","V",2,"Truffe de Chasseur","Suit une piste olfactive ancienne."],
-["N","A","V",2,"Naseaux Larges","Oxygénation et endurance accrues."],
-["N","A","I",4,"Détecteur de Toxines","Détecte les poisons dans l'air ou les boissons."],
-["N","A","I",4,"Chimio-Radar","Identifie espèce et émotions à l'odeur."],
-["N","S","V",4,"Appendice Étoilé","Détecte les mouvements d'air."],
-["N","S","I",6,"Filtre Nasal Double","Neutralise fumées et gaz irritants."],
-["M","O","V",5,"Nuage Toxique","Expulse des vapeurs corrosives."],
-["M","D","V",5,"Souffle Épurateur","Résiste aux miasmes et maladies aéroportées."],
-["M","N","V",4,"Flair Magique","Détecte magie active et reliques."],
-["M","O","I",7,"Flair de la Blessure","Localise la blessure critique d'un adversaire."],
-["M","D","I",7,"Neutralisation Nauséeuse","Insensibilité aux odeurs de putréfaction."],
-["M","N","I",6,"Flair de l'Or","Détecte les métaux précieux cachés."]
-]},
-{
-name:"Derme / Peau",bonus:5,m:[
-["N","A","V",2,"Peau d'Écailles","Réduit les dégâts tranchants."],
-["N","A","V",2,"Carapace Dorsale","Protège des attaques dans le dos."],
-["N","A","V",2,"Camouflage Chromatique","Se fond dans le décor à l'arrêt."],
-["N","A","I",4,"Tissu Sous-Cutané Dense","Amortit chocs et chutes."],
-["N","A","I",4,"Thermorégulation","Résiste aux températures extrêmes."],
-["N","A","I",4,"Derme Sudoripare Glissant","Empêche les saisies."],
-["N","S","V",4,"Plaques Ostéodermiques","Excroissances osseuses protectrices."],
-["N","S","V",4,"Piquants Rétractiles","Blesse les assaillants au contact."],
-["N","S","I",6,"Matrice Renforcée","Absorbe un premier coup mortel."],
-["N","S","I",6,"Cicatrisation Accélérée","Referme rapidement les lacérations."],
-["M","O","V",5,"Épines Ardentes","Pointes de feu réagissant aux coups."],
-["M","O","V",5,"Peau Foudroyante","Décharge électrique au contact."],
-["M","D","V",5,"Peau de Granit","Durcissement minéral protecteur."],
-["M","D","V",5,"Écorce Vivante","Régénère des PV au soleil."],
-["M","N","V",4,"Voile d'Ombre","Camouflage dans la pénombre."],
-["M","O","I",7,"Choc Éthéré","Renvoie l'onde de choc reçue."],
-["M","D","I",7,"Chair Invulnérable","Immunité temporaire aux armes ordinaires."],
-["M","D","I",7,"Forme Déphasée","Laisse passer les lames matérielles."],
-["M","N","I",6,"Surface Répulsive","Repousse acides et substances adhésives."]
-]},
-{
-name:"Membres supérieurs",bonus:3,m:[
-["N","A","V",2,"Griffes Acérées","Lacérations profondes."],
-["N","A","V",2,"Pinces de Broyage","Plie le fer et brise les armes."],
-["N","A","V",2,"Coussinets Adhésifs","Grimpe sur les surfaces lisses."],
-["N","A","I",4,"Frappe Foudroyante","Vitesse de frappe fulgurante."],
-["N","A","I",4,"Poigne Indéboulonnable","Résiste aux désarmements."],
-["N","A","I",4,"Doigts de Précision","Facilite les manipulations fines."],
-["N","S","V",4,"Seconde Paire de Bras","Bras supplémentaires pour attaquer et parer."],
-["N","S","V",4,"Bras-Tentacule","Membre étirable à trois mètres."],
-["N","S","I",6,"Fibres Musculaires Multiples","Force de levage accrue."],
-["N","S","I",6,"Tendon Élastique","Impact destructeur sans élan."],
-["M","O","V",5,"Griffes de Braise","Mains enflammées."],
-["M","O","V",5,"Frappe Tellurique","Onde sismique renversant les cibles."],
-["M","D","V",5,"Gantelet Infranchissable","Dévie les armes tranchantes."],
-["M","D","V",5,"Égide Runique","Bouclier d'énergie."],
-["M","N","V",4,"Paume Réparatrice","Répare un objet par contact."],
-["M","O","I",7,"Poigne Télékinétique","Projette ou désarme à distance."],
-["M","O","I",7,"Frappe Déphasée","Traverse les armures."],
-["M","D","I",7,"Siphon de Sortilège","Convertit un sort intercepté en Vitalité."],
-["M","N","I",6,"Toucher Fantomatique","Manipule des objets sans contact."]
-]},
-{
-name:"Membres inférieurs",bonus:3,m:[
-["N","A","V",2,"Pattes Sauteuses","Sauts extraordinaires."],
-["N","A","V",2,"Sabots Percuteurs","Ruade puissante."],
-["N","A","I",4,"Course Inépuisable","Résiste à la fatigue des sprints."],
-["N","A","I",4,"Amorti Musculaire","Amortit les chutes moyennes."],
-["N","S","V",4,"Pattes d'Arachnide","Membres supplémentaires empêchant le renversement."],
-["N","S","I",6,"Rotules Déportées","Contorsions facilitées."],
-["M","O","V",5,"Écrasement Ardent","Cercle de braises au sol."],
-["M","D","V",5,"Enracinement Primitif","Devient inamovible."],
-["M","N","V",4,"Pas Aérien","Marche sur l'eau, la neige et les fondrières."],
-["M","O","I",7,"Ruée Spectrale","Traverse les ennemis en les blessant."],
-["M","D","I",7,"Pas d'Évasion","Micro-téléportation réflexe."],
-["M","N","I",6,"Marche Sans Trace","Déplacement silencieux sans traces."]
-]},
-{
-name:"Tronc / Organes",bonus:5,m:[
-["N","A","V",2,"Plastron Osseux","Protection thoracique renforcée."],
-["N","A","V",2,"Bosse de Réserve","Survit sept jours sans vivres ni eau."],
-["N","A","I",4,"Surpression Cardiaque","Permet deux actions dans un tour."],
-["N","A","I",4,"Poumons Hypertrophiés","Apnée prolongée."],
-["N","S","V",4,"Queue Préhensile","Appendice supplémentaire pour frapper ou porter."],
-["N","S","V",4,"Ailes Membraneuses","Permet de planer."],
-["N","S","I",6,"Second Cœur","Permet de se relever à zéro PV."],
-["N","S","I",6,"Double Estomac","Neutralise les poisons ingérés."],
-["M","O","V",5,"Ailes Ignées","Projette des flammèches."],
-["M","D","V",5,"Cage Runique","Réduit les dégâts mortels au tronc."],
-["M","N","V",4,"Poche Dimensionnelle","Espace magique de rangement."],
-["M","O","I",7,"Souffle Explosif","Explosion thermique circulaire."],
-["M","D","I",7,"Cœur de Golem","Immunité aux saignements et poisons."],
-["M","N","I",6,"Respiration Planaire","Survit sans oxygène."]
-]}
+{name:'Yeux',bonus:2,m:[
+['N','A','V',2,'Œil de Faucon','Vise à longue distance sans pénalité.'],['N','A','V',2,'Yeux de Chat','Voit dans le noir complet.'],['N','A','V',2,'Vue Panoramique','Champ visuel élargi.'],['N','A','I',4,'Vision Thermique','Repère la chaleur des corps.'],['N','A','I',4,'Ralenti Réflexe','Anticipe les trajectoires.'],['N','S','V',4,'Troisième Œil','Œil frontal toujours vigilant.'],['N','S','I',6,'Ocelles Internes','Perception intuitive des attaques surprises.'],['M','O','V',5,'Regard de Pierre','Pétrifie une cible pendant un tour.'],['M','O','V',5,'Rayon Ardent','Projette des faisceaux brûlants.'],['M','D','V',5,'Yeux Miroirs','Renvoie les sorts lumineux.'],['M','D','V',5,'Flash Aveuglant','Aveugle les cibles proches.'],['M','N','V',4,'Vue des Secrets','Révèle pièges et passages secrets.'],['M','O','I',7,'Mauvais Œil','Force l’échec du prochain jet d’une cible.'],['M','D','I',7,'Protection Mentale','Immunité aux illusions mentales.'],['M','N','I',6,'Vue des Fantômes','Détecte les esprits invisibles.']]},
+{name:'Bouche',bonus:2,m:[
+['N','A','V',2,'Mâchoire d’Acier','Broie armes et boucliers.'],['N','A','V',2,'Dents de Sabre','Morsure hémorragique.'],['N','A','V',2,'Langue Préhensile','Saisit un objet à trois mètres.'],['N','A','I',4,'Crachat Acide','Salive corrosive.'],['N','A','I',4,'Salive Venimeuse','Morsure paralysante.'],['N','S','V',4,'Double Mâchoire','Seconde attaque de morsure.'],['N','S','I',6,'Poche de Venin','Réserve de venin supplémentaire.'],['M','O','V',5,'Souffle de Dragon','Cône de flammes magiques.'],['M','O','V',5,'Souffle de Givre','Nuage glacial.'],['M','D','V',5,'Morsure Absorbeuse','Draine la vitalité adverse.'],['M','D','V',5,'Rugissement Barrière','Onde repoussant les assaillants.'],['M','N','V',4,'Parler Bestial','Communique avec les animaux.'],['M','O','I',7,'Cri de Banshee','Onde sonore terrifiante.'],['M','D','I',7,'Mot de Garde','Annule un sort en cours.'],['M','N','I',6,'Chant Envoûtant','Charme une cible par le chant.']]},
+{name:'Oreilles',bonus:2,m:[
+['N','A','V',2,'Grandes Oreilles','Entend à travers les cloisons.'],['N','A','V',2,'Radar Acoustique','Détecte les cibles invisibles.'],['N','A','I',4,'Filtre Sélectif','Isole un son précis.'],['N','A','I',4,'Écholocation','Cartographie les lieux dans le noir.'],['N','S','V',4,'Pavillons Secondaires','Écoute dans plusieurs directions.'],['N','S','I',6,'Récepteurs Sismiques','Détecte les pas à distance.'],['M','O','V',5,'Détonation Sonore','Onde assommant les ennemis.'],['M','D','V',5,'Bulle de Silence','Absorbe les sons.'],['M','N','V',4,'Oreilles Féeriques','Comprend toutes les langues.'],['M','O','I',7,'Écho Douloureux','Renvoie un sort verbal.'],['M','D','I',7,'Calme Absolu','Immunité aux peurs auditives.'],['M','N','I',6,'Écoute Astrale','Capte des échanges lointains.']]},
+{name:'Nez',bonus:2,m:[
+['N','A','V',2,'Truffe de Chasseur','Suit une piste olfactive ancienne.'],['N','A','V',2,'Naseaux Larges','Endurance de course accrue.'],['N','A','I',4,'Détecteur de Toxines','Détecte les poisons.'],['N','A','I',4,'Chimio-Radar','Identifie les créatures par leur odeur.'],['N','S','V',4,'Appendice Étoilé','Détecte les mouvements d’air.'],['N','S','I',6,'Filtre Nasal Double','Neutralise fumées et gaz irritants.'],['M','O','V',5,'Nuage Toxique','Expulse des vapeurs corrosives.'],['M','D','V',5,'Souffle Épurateur','Résiste aux miasmes et maladies.'],['M','N','V',4,'Flair Magique','Détecte les objets magiques.'],['M','O','I',7,'Flair de la Blessure','Détecte les blessures critiques.'],['M','D','I',7,'Neutralisation Nauséeuse','Insensibilité aux odeurs répugnantes.'],['M','N','I',6,'Flair de l’Or','Détecte les métaux précieux.']]},
+{name:'Derme / Peau',bonus:5,m:[
+['N','A','V',2,'Peau d’Écailles','Résiste aux armes tranchantes.'],['N','A','V',2,'Carapace Dorsale','Protège des attaques dans le dos.'],['N','A','V',2,'Camouflage Chromatique','Se fond dans le décor.'],['N','A','I',4,'Tissu Sous-Cutané Dense','Amortit les impacts.'],['N','A','I',4,'Thermorégulation','Résiste aux températures extrêmes.'],['N','A','I',4,'Derme Glissant','Empêche les saisies.'],['N','S','V',4,'Plaques Ostéodermiques','Excroissances osseuses protectrices.'],['N','S','V',4,'Piquants Rétractiles','Blesse les assaillants au contact.'],['N','S','I',6,'Matrice Renforcée','Absorbe un coup mortel.'],['N','S','I',6,'Cicatrisation Accélérée','Referme rapidement les blessures.'],['M','O','V',5,'Épines Ardentes','Pointes de feu réactives.'],['M','O','V',5,'Peau Foudroyante','Décharge électrique au contact.'],['M','D','V',5,'Peau de Granit','Protection minérale.'],['M','D','V',5,'Écorce Vivante','Régénération au soleil.'],['M','N','V',4,'Voile d’Ombre','Camouflage dans la pénombre.'],['M','O','I',7,'Choc Éthéré','Renvoie les impacts.'],['M','D','I',7,'Chair Invulnérable','Résiste temporairement aux armes ordinaires.'],['M','D','I',7,'Forme Déphasée','Laisse passer les lames.'],['M','N','I',6,'Surface Répulsive','Repousse les substances adhésives.']]},
+{name:'Membres supérieurs',bonus:3,m:[
+['N','A','V',2,'Griffes Acérées','Lacérations profondes.'],['N','A','V',2,'Pinces de Broyage','Brise les armes.'],['N','A','V',2,'Coussinets Adhésifs','Grimpe sur les surfaces lisses.'],['N','A','I',4,'Frappe Foudroyante','Vitesse de frappe accrue.'],['N','A','I',4,'Poigne Indéboulonnable','Résiste aux désarmements.'],['N','A','I',4,'Doigts de Précision','Manipulations fines facilitées.'],['N','S','V',4,'Seconde Paire de Bras','Bras supplémentaires.'],['N','S','V',4,'Bras-Tentacule','Membre étirable.'],['N','S','I',6,'Fibres Musculaires Multiples','Force de levage accrue.'],['N','S','I',6,'Tendon Élastique','Frappe puissante sans élan.'],['M','O','V',5,'Griffes de Braise','Mains enflammées.'],['M','O','V',5,'Frappe Tellurique','Onde sismique.'],['M','D','V',5,'Gantelet Infranchissable','Dévie les lames.'],['M','D','V',5,'Égide Runique','Bouclier d’énergie.'],['M','N','V',4,'Paume Réparatrice','Répare les objets.'],['M','O','I',7,'Poigne Télékinétique','Projette une cible à distance.'],['M','O','I',7,'Frappe Déphasée','Traverse les armures.'],['M','D','I',7,'Siphon de Sortilège','Absorbe l’énergie magique.'],['M','N','I',6,'Toucher Fantomatique','Manipule sans contact.']]},
+{name:'Membres inférieurs',bonus:3,m:[
+['N','A','V',2,'Pattes Sauteuses','Sauts extraordinaires.'],['N','A','V',2,'Sabots Percuteurs','Ruade puissante.'],['N','A','I',4,'Course Inépuisable','Résiste à la fatigue.'],['N','A','I',4,'Amorti Musculaire','Amortit les chutes.'],['N','S','V',4,'Pattes d’Arachnide','Membres supplémentaires.'],['N','S','I',6,'Rotules Déportées','Contorsions facilitées.'],['M','O','V',5,'Écrasement Ardent','Cercle de flammes au sol.'],['M','D','V',5,'Enracinement Primitif','Devient inamovible.'],['M','N','V',4,'Pas Aérien','Marche sur l’eau.'],['M','O','I',7,'Ruée Spectrale','Traverse les ennemis.'],['M','D','I',7,'Pas d’Évasion','Téléportation réflexe.'],['M','N','I',6,'Marche Sans Trace','Déplacement silencieux.']]},
+{name:'Tronc / Organes',bonus:5,m:[
+['N','A','V',2,'Plastron Osseux','Protection thoracique.'],['N','A','V',2,'Bosse de Réserve','Survit sept jours sans vivres.'],['N','A','I',4,'Surpression Cardiaque','Permet deux actions dans un tour.'],['N','A','I',4,'Poumons Hypertrophiés','Apnée prolongée.'],['N','S','V',4,'Queue Préhensile','Appendice supplémentaire.'],['N','S','V',4,'Ailes Membraneuses','Permet de planer.'],['N','S','I',6,'Second Cœur','Permet de se relever à zéro PV.'],['N','S','I',6,'Double Estomac','Neutralise les poisons ingérés.'],['M','O','V',5,'Ailes Ignées','Projette des flammes.'],['M','D','V',5,'Cage Runique','Réduit les dégâts au tronc.'],['M','N','V',4,'Poche Dimensionnelle','Stockage magique.'],['M','O','I',7,'Souffle Explosif','Explosion thermique.'],['M','D','I',7,'Cœur de Golem','Immunité aux saignements et poisons.'],['M','N','I',6,'Respiration Planaire','Survit sans oxygène.']]}
 ];
-
-/*
-INITIALISATION
-*/
-
-const familyNames=Object.keys(traits);
-const familySelect=document.getElementById("family");
-
-familyNames.forEach(name=>{
- const option=document.createElement("option");
- option.value=name;
- option.textContent=name;
- familySelect.appendChild(option);
-});
-
-const sizes={
- light:{min:20,max:22,base:21,name:"Léger / Véloce"},
- medium:{min:23,max:25,base:24,name:"Moyen / Standard"},
- heavy:{min:26,max:28,base:27,name:"Lourd / Colossal"}
+// Catalogue indicatif : uniquement des noms issus de traditions mythologiques ou folkloriques.
+// Les mots-clés ne servent qu'à classer les suggestions, pas à certifier une identité.
+const speciesCatalog={
+'Petit Peuple':[
+['Lutin','Folklore français',['petit','discrétion','illusion','outil']],['Korrigan','Folklore breton',['illusion','chant','ombre','magique']],['Brownie','Folklore écossais',['réparatrice','outil','foyer']],['Domovoï','Folklore slave',['foyer','maison','protection']],['Kobold','Folklore germanique',['mine','métal','ombre']],['Puck','Folklore anglais',['illusion','métamorphose','trompeur']]],
+'Chiméroïdes':[
+['Chimère','Mythologie grecque',['souffle','dragon','queue','mâchoire','flamme']],['Manticore','Traditions persanes',['queue','griffes','mâchoire','piquants']],['Griffon','Traditions antiques méditerranéennes',['ailes','griffes','vue','faucon']],['Sphinx','Traditions égyptiennes et grecques',['énigme','griffes','ailes','parler']],['Hippogriffe','Tradition littéraire de la Renaissance',['ailes','sabots','griffes']],['Amphisbène','Traditions gréco-romaines',['double','venin','mâchoire']]],
+'Humanoïdes':[
+['Ogre','Folklore européen',['mâchoire','force','vorace']],['Troll','Folklore scandinave',['pierre','granite','cicatrisation']],['Oni','Folklore japonais',['griffes','force','armes']],['Géant','Mythologies et folklores européens',['plastron','force','frappe']],['Cyclope','Mythologie grecque',['œil','outil','forgé']],['Orc','Tradition littéraire moderne',['arme','cohésion','griffes']]],
+'Liés à la Mort':[
+['Revenant','Folklore européen',['fantômes','mort','cœur']],['Banshee','Folklore irlandais',['cri','sonore','chant']],['Draugr','Tradition nordique',['mâchoire','froid','force']],['Jiangshi','Folklore chinois',['saut','rigidité','vitalité']],['Goule','Folklore arabe',['mâchoire','venin','griffes']],['Vampire','Folklore européen',['morsure','sang','cicatrisation']]],
+'Métamorphes':[
+['Loup-garou','Folklore européen',['griffes','truffe','morsure','course']],['Kitsune','Folklore japonais',['illusion','chant','queue']],['Selkie','Folklore écossais et irlandais',['peau','eau','apnée']],['Bakeneko','Folklore japonais',['chat','griffes','ombre']],['Naga','Traditions hindoues et bouddhiques',['queue','venin','écailles']],['Púca','Folklore irlandais',['illusion','sabots','course']]],
+'Entités Élémentaires':[
+['Salamandre','Tradition alchimique européenne',['feu','flamme','ardent','braise']],['Ondine','Tradition alchimique européenne',['eau','givre','apnée']],['Sylphe','Tradition alchimique européenne',['air','ailes','aérien']],['Gnome','Tradition alchimique européenne',['terre','granit','tellurique']],['Djinn','Traditions arabes et islamiques',['souffle','flamme','dimensionnelle']],['Ifrit','Traditions arabes et islamiques',['flamme','ardent','explosif']]],
+'Rejetons Aberrants':[
+['Gorgone','Mythologie grecque',['pierre','regard','yeux']],['Basilic','Bestiaires médiévaux européens',['pierre','regard','venin']],['Catoblépas','Tradition antique gréco-romaine',['regard','toxique','mâchoire']],['Nuckelavee','Folklore des Orcades',['peau','toxique','cheval']],['Aqrabuamelu','Mythologie mésopotamienne',['piquants','griffes','venin']],['Asag','Mythologie mésopotamienne',['pierre','maladie','toxique']]],
+'Forgés & Artificiels':[
+['Golem','Tradition juive',['golem','granit','plastron','runique']],['Talos','Mythologie grecque',['plastron','métal','foudroyante']],['Automate de Héphaïstos','Mythologie grecque',['outil','réparatrice','mécanique']],['Homoncule','Tradition alchimique européenne',['cœur','magique','poche']],['Galatée','Mythe grec de Pygmalion',['pierre','granit','peau']],['Têtes d’airain parlantes','Légendes médiévales européennes',['parler','sonore','oreilles']]],
+'Draconiques & Reptiliens':[
+['Dragon européen','Folklore européen',['ailes','flamme','souffle','écailles']],['Wyverne','Héraldique et folklore européens',['ailes','venin','queue']],['Lindworm','Folklore germanique et scandinave',['écailles','queue','mâchoire']],['Vouivre','Folklore français',['écailles','queue','venin']],['Basilic','Bestiaires médiévaux européens',['pierre','regard','venin']],['Tatzelwurm','Folklore alpin',['griffes','écailles','mâchoire']]],
+'Créatures Abyssales & Insectoïdes':[
+['Jorōgumo','Folklore japonais',['araignée','pattes','glu','adhésifs']],['Tsuchigumo','Folklore japonais',['araignée','pattes','glu']],['Aqrabuamelu','Mythologie mésopotamienne',['pinces','venin','carapace']],['Karkinos','Mythologie grecque',['pinces','carapace','eau']],['Akkorokamui','Folklore aïnou',['tentacule','eau','apnée']],['Umibōzu','Folklore japonais',['eau','ombre','silence']]]
 };
-
-document.getElementById("size").addEventListener("change",()=>{
- const s=sizes[document.getElementById("size").value];
- const input=document.getElementById("base");
- input.min=s.min;
- input.max=s.max;
- input.value=s.base;
-});
-
-function pick(array){
- return array[Math.floor(Math.random()*array.length)];
-}
-function d6(){
- return 1+Math.floor(Math.random()*6);
-}
-
-/*
-GÉNÉRATION
-
-T1 : naturel 1-5, magique 6
-T2 : naturel 1-4, magique 5-6
-T3 : naturel 1-3, magique 4-6
-T4 : naturel 1-2, magique 3-6
-
-Deux mutations au maximum par région.
-Aucun doublon exact.
-*/
-
-function generate(){
- const tier=Number(document.getElementById("tier").value);
- const family=familySelect.value||pick(familyNames);
- const size=sizes[document.getElementById("size").value];
-
- const baseInput=document.getElementById("base");
- const base=Math.min(
-  size.max,
-  Math.max(size.min,Number(baseInput.value)||size.base)
- );
- baseInput.value=base;
-
- const advRoll=d6();
- const disRoll=d6();
- const advantage=traits[family][advRoll-1];
- const disadvantage=traits[family][disRoll-1];
-
- const limits=[[1,2],[3,4],[5,7],[8,10]][tier-1];
- const count=limits[0]+Math.floor(
-  Math.random()*(limits[1]-limits[0]+1)
- );
-
- const naturalThreshold=[5,4,3,2][tier-1];
- const selected=[];
- const used=new Set();
- const regionCounts={};
-
- for(let i=0;i<count;i++){
-  let chosen=null;
-
-  for(let attempt=0;attempt<1000&&!chosen;attempt++){
-   const region=pick(regions);
-
-   if((regionCounts[region.name]||0)>=2)continue;
-
-   const path=d6()<=naturalThreshold?"N":"M";
-   const roll=d6();
-   const branch=path==="N"
-    ?(roll<=4?"A":"S")
-    :(roll<=2?"O":roll<=4?"D":"N");
-   const visibility=Math.random()<0.5?"V":"I";
-
-   const candidates=region.m.filter(m=>
-    m[0]===path &&
-    m[1]===branch &&
-    m[2]===visibility &&
-    !used.has(m[4])
-   );
-
-   if(candidates.length){
-    chosen={region,mutation:pick(candidates)};
-   }
-  }
-
-  if(!chosen){
-   const available=[];
-
-   for(const region of regions){
-    if((regionCounts[region.name]||0)>=2)continue;
-
-    for(const mutation of region.m){
-     if(!used.has(mutation[4])){
-      available.push({region,mutation});
-     }
-    }
-   }
-
-   if(!available.length)break;
-   chosen=pick(available);
-  }
-
-  used.add(chosen.mutation[4]);
-
-  regionCounts[chosen.region.name]=
-   (regionCounts[chosen.region.name]||0)+1;
-
-  selected.push(chosen);
- }
-
- render({
-  tier,family,size,base,
-  advRoll,disRoll,
-  advantage,disadvantage,
-  selected
- });
-}
-
-/*
-AFFICHAGE
-*/
-
-function addText(parent,tag,value,className){
- const element=document.createElement(tag);
- element.textContent=value;
- if(className)element.className=className;
- parent.appendChild(element);
- return element;
-}
-
-let currentCreature=null;
-function render(data){
- currentCreature=data;
- document.getElementById("result").classList.remove("hidden");
-
- document.getElementById("creatureName").textContent=data.family;
-
- const summary=document.getElementById("summary");
- summary.replaceChildren();
-
- [
-  "Tier "+data.tier,
-  data.size.name,
-  data.selected.length+" mutations"
- ].forEach(value=>{
-  addText(summary,"span",value,"pill");
- });
-
- document.getElementById("advName").textContent=data.advantage[0];
- document.getElementById("advEffect").textContent=data.advantage[1];
- document.getElementById("advRoll").textContent=
-  "Tirage : "+data.advRoll+"/6";
-
- document.getElementById("disName").textContent=data.disadvantage[2];
- document.getElementById("disEffect").textContent=data.disadvantage[3];
- document.getElementById("disRoll").textContent=
-  "Tirage : "+data.disRoll+"/6";
-
- const list=document.getElementById("mutationList");
- list.replaceChildren();
-
- let bonus=0;
-
- data.selected.forEach((item,index)=>{
-  const m=item.mutation;
-  const region=item.region;
-  bonus+=region.bonus;
-
-  const card=document.createElement("article");
-  card.className="mutation";
-
-  addText(card,"strong",(index+1)+". "+m[4]);
-
-  const path=m[0]==="N"?"Naturelle":"Magique";
-  const visibility=m[2]==="V"?"Visible":"Invisible";
-
-  let branch;
-  if(m[0]==="N"){
-   branch=m[1]==="A"?"Amélioration":"Surnuméraire";
-  }else{
-   branch=m[1]==="O"?"Offensive":
-    m[1]==="D"?"Défensive":"Neutre";
-  }
-
-  addText(
-   card,"div",
-   region.name+" · "+path+" · "+branch+
-   " · "+visibility+" · "+m[3]+" XP",
-   "meta"
-  );
-
-  addText(card,"p",m[5]);
-
-  addText(
-   card,"div",
-   "Bonus de Vitalité : +"+region.bonus+" PV",
-   "meta"
-  );
-
-  list.appendChild(card);
- });
-
- const total=data.base+bonus;
-
- document.getElementById("vitalityDetail").textContent=
-  "Vitalité de base : "+data.base+
-  " PV · Bonus des mutations : +"+bonus+" PV";
-
- document.getElementById("vitalityTotal").textContent=
-  total+" PV";
-
- document.getElementById("result").scrollIntoView({
-  behavior:"smooth",
-  block:"start"
- });
-}
-
-/*
-COMMANDES
-*/
-
-document.getElementById("generate")
- .addEventListener("click",generate);
-
-document.getElementById("again")
- .addEventListener("click",generate);
-
-document.getElementById("print")
- .addEventListener("click",()=>window.print());
-
-
-/* Sauvegarde locale, sans serveur */
-const STORAGE_KEY="union-bestiaire-v1";
-function readSaved(){try{const v=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return Array.isArray(v)?v:[]}catch{return []}}
-function writeSaved(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v));showSaved()}
-function packCreature(data){return {
- id:Date.now()+"-"+Math.random().toString(36).slice(2),savedAt:new Date().toISOString(),
- tier:data.tier,family:data.family,sizeKey:document.getElementById("size").value,base:data.base,
- advRoll:data.advRoll,disRoll:data.disRoll,
- selected:data.selected.map(item=>({region:regions.indexOf(item.region),mutation:item.region.m.indexOf(item.mutation)}))
-}}
-function unpackCreature(v){
- if(!v||!traits[v.family]||!sizes[v.sizeKey]||!Number.isInteger(v.tier)||v.tier<1||v.tier>4)throw Error("Fiche invalide");
- if(!Number.isInteger(v.advRoll)||v.advRoll<1||v.advRoll>6||!Number.isInteger(v.disRoll)||v.disRoll<1||v.disRoll>6)throw Error("Tirages invalides");
- if(!Array.isArray(v.selected)||v.selected.length>10)throw Error("Mutations invalides");
- const selected=v.selected.map(x=>{const region=regions[x.region];if(!region||!region.m[x.mutation])throw Error("Mutation inconnue");return {region,mutation:region.m[x.mutation]}});
- return {tier:v.tier,family:v.family,size:sizes[v.sizeKey],base:Number(v.base),advRoll:v.advRoll,disRoll:v.disRoll,advantage:traits[v.family][v.advRoll-1],disadvantage:traits[v.family][v.disRoll-1],selected};
-}
-function showSaved(){const list=document.getElementById("savedList");list.replaceChildren();const saved=readSaved();if(!saved.length){addText(list,"p","Aucune créature sauvegardée.","small");return}
- saved.forEach((v,i)=>{const card=document.createElement("div");card.className="trait";addText(card,"strong",v.family+" — Tier "+v.tier);addText(card,"div",new Date(v.savedAt).toLocaleString("fr-FR")+" · "+v.selected.length+" mutations","meta");const actions=document.createElement("div");actions.className="actions";const load=document.createElement("button");load.textContent="Afficher";load.onclick=()=>{try{document.getElementById("tier").value=v.tier;familySelect.value=v.family;document.getElementById("size").value=v.sizeKey;document.getElementById("base").value=v.base;render(unpackCreature(v))}catch(e){alert(e.message)}};actions.append(load);const del=document.createElement("button");del.className="secondary";del.textContent="Supprimer";del.onclick=()=>{if(confirm("Supprimer cette créature ?")){const a=readSaved();a.splice(i,1);writeSaved(a)}};actions.append(del);card.append(actions);list.append(card)})
-}
-document.getElementById("saveCreature").onclick=()=>{if(!currentCreature)return;try{writeSaved([packCreature(currentCreature),...readSaved()]);alert("Créature sauvegardée sur cet appareil.")}catch(e){alert("Sauvegarde impossible : "+e.message)}};
-document.getElementById("exportSaved").onclick=()=>{const blob=new Blob([JSON.stringify({application:"union-bestiaire",version:1,creatures:readSaved()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="union-bestiaire-sauvegardes.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
-document.getElementById("importSaved").onclick=()=>document.getElementById("importFile").click();
-document.getElementById("importFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.application!=="union-bestiaire"||!Array.isArray(data.creatures))throw Error("Format non reconnu");data.creatures.forEach(unpackCreature);const existing=readSaved();const ids=new Set(existing.map(v=>v.id));const incoming=data.creatures.filter(v=>!ids.has(v.id));writeSaved([...incoming,...existing]);alert(incoming.length+" créature(s) importée(s).") }catch(err){alert("Import impossible : "+err.message)}e.target.value=""};
-showSaved();
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(console.warn))}
-
-</script>
-</body>
-</html>
+const nameStarts=['Az','Mor','Var','Thal','Kor','Syl','Ner','Dra','Vel','Rha','Eld','Zar','Mal','Vor','Ish','Fen','Or','Kha','Ulm','Sae'];
+const nameEnds=['rakh','ghul','kûn','érys','thar','mora','dren','vyr','neth','zok','liss','mar','tros','gorn','vek','ara','diel','vash'];
+const $=id=>document.getElementById(id),rand=n=>Math.floor(Math.random()*n),pick=a=>a[rand(a.length)],d6=()=>rand(6)+1;
+let current=null;const storageKey='union_bestiary_v2';
+Object.keys(traits).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;$('family').appendChild(o)});
+function suggestedSpecies(c){const text=[c.advantage[0],c.disadvantage[2],...c.selected.flatMap(x=>[x.region,x.mutation[4],x.mutation[5]])].join(' ').toLocaleLowerCase('fr');return (speciesCatalog[c.family]||[]).map((s,i)=>({name:s[0],origin:s[1],score:s[2].reduce((sum,k)=>sum+(text.includes(k)?3:0),0),index:i})).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,3)}
+function newName(){return pick(nameStarts)+pick(nameEnds)}
+function makeMutation(tier,selected){const used=new Set(selected.map(x=>x.mutation[4]));const counts={};selected.forEach(x=>counts[x.region]=(counts[x.region]||0)+1);const possibleRegions=regions.filter(r=>(counts[r.name]||0)<2);if(!possibleRegions.length)return null;const threshold=[5,4,3,2][tier-1];for(let tries=0;tries<10000;tries++){const r=pick(possibleRegions);const path=d6()<=threshold?'N':'M';const die=d6();const branch=path==='N'?(die<=4?'A':'S'):(die<=2?'O':die<=4?'D':'N');const visible=rand(2)===0?'V':'I';const options=r.m.filter(m=>m[0]===path&&m[1]===branch&&m[2]===visible&&!used.has(m[4]));if(options.length)return{region:r.name,bonus:r.bonus,mutation:pick(options),roll:{path,branch,visible}}}throw Error('Aucune mutation compatible trouvée après 10 000 essais. Aucun tirage hors protocole n’a été appliqué.')}
+function generate(){try{const tier=Number($('tier').value),family=$('family').value||pick(Object.keys(traits)),base=Number($('base').value),range=[[1,2],[3,4],[5,7],[8,10]][tier-1],count=range[0]+rand(range[1]-range[0]+1),advRoll=d6(),disRoll=d6(),selected=[];for(let i=0;i<count;i++){const m=makeMutation(tier,selected);if(m)selected.push(m)}const pool=4-(base-20)/2;let agility=0,instinct=0;for(let i=0;i<pool;i++)rand(2)===0?agility++:instinct++;const c={id:Date.now()+'-'+rand(1000000),name:$('nameMode').value==='manual'?$('inputName').value.trim():$('inputName').value.trim()||newName(),species:'',family,tier,base,agility,instinct,advRoll,disRoll,advantage:traits[family][advRoll-1],disadvantage:traits[family][disRoll-1],selected};c.species=suggestedSpecies(c)[0]?.name||'';current=c;render();$('result').scrollIntoView({behavior:'smooth'});}catch(e){$('status').textContent='Erreur de génération : '+e.message;console.error(e)}}
+function textNode(parent,tag,value,cls){const e=document.createElement(tag);e.textContent=value;if(cls)e.className=cls;parent.appendChild(e);return e}
+function render(){if(!current)return;const c=current;$('result').classList.remove('hidden');$('creatureName').value=c.name;$('speciesName').value=c.species;$('summary').textContent=c.family+' · Tier '+c.tier+' · '+c.selected.length+' mutations';const bonus=c.selected.reduce((s,m)=>s+m.bonus,0);$('vitalityTotal').textContent=c.base+bonus;$('agility').textContent='+'+c.agility;$('instinct').textContent='+'+c.instinct;$('vitalityDetail').textContent='Vitalité de base : '+c.base+' + mutations : '+bonus+' = '+(c.base+bonus)+' PV. Répartition des '+(4-(c.base-20)/2)+' points de bonus : Agilité +'+c.agility+' / Instinct +'+c.instinct+'.';$('advName').textContent=c.advantage[0];$('advEffect').textContent=c.advantage[1];$('advRoll').textContent='Tirage '+c.advRoll+'/6';$('disName').textContent=c.disadvantage[2];$('disEffect').textContent=c.disadvantage[3];$('disRoll').textContent='Tirage '+c.disRoll+'/6';const suggestions=$('suggestions');suggestions.replaceChildren();suggestedSpecies(c).forEach(s=>{const box=document.createElement('div');box.className='suggestion';const btn=document.createElement('button');btn.className='secondary';btn.textContent='Choisir';btn.onclick=()=>{$('speciesName').value=s.name;c.species=s.name};box.appendChild(btn);textNode(box,'strong',s.name+' — ');textNode(box,'span',s.origin,'meta');suggestions.appendChild(box)});const list=$('mutationList');list.replaceChildren();c.selected.forEach((x,i)=>{const m=x.mutation,card=document.createElement('article');card.className='mutation';textNode(card,'strong',(i+1)+'. '+m[4]);const branch=m[0]==='N'?(m[1]==='A'?'Amélioration':'Surnuméraire'):(m[1]==='O'?'Offensive':m[1]==='D'?'Défensive':'Neutre');textNode(card,'div',x.region+' · '+(m[0]==='N'?'Naturelle':'Magique')+' · '+branch+' · '+(m[2]==='V'?'Visible':'Invisible')+' · '+m[3]+' XP','meta');textNode(card,'p',m[5]);textNode(card,'small','Bonus de Vitalité : +'+x.bonus+' PV');list.appendChild(card)});$('xpTotal').textContent='Coût total des mutations : '+c.selected.reduce((s,x)=>s+x.mutation[3],0)+' XP';$('status').textContent=''}
+$('creatureName').addEventListener('input',e=>{if(current)current.name=e.target.value});$('speciesName').addEventListener('input',e=>{if(current)current.species=e.target.value});$('generate').onclick=generate;$('again').onclick=generate;$('print').onclick=()=>window.print();
+function getSaved(){try{const data=JSON.parse(localStorage.getItem(storageKey)||'[]');return Array.isArray(data)?data:[]}catch{return []}}
+function store(list){localStorage.setItem(storageKey,JSON.stringify(list))}
+$('save').onclick=()=>{if(!current)return;try{const list=getSaved(),index=list.findIndex(x=>x.id===current.id);if(index>=0)list[index]=structuredClone(current);else list.unshift(structuredClone(current));store(list);showLibrary();$('status').textContent='Fiche enregistrée dans ce navigateur.'}catch(e){$('status').textContent='Sauvegarde impossible : '+e.message}};
+function downloadJSON(c){const blob=new Blob([JSON.stringify(c,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(c.name||'creature').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('export').onclick=()=>{if(current)downloadJSON(current)};
+function showLibrary(){const list=getSaved(),term=$('search').value.toLocaleLowerCase('fr'),out=$('library');out.replaceChildren();const filtered=list.filter(c=>(c.name+' '+c.species+' '+c.family).toLocaleLowerCase('fr').includes(term));if(!filtered.length){textNode(out,'p','Aucune fiche enregistrée correspondant à la recherche.','meta');return}filtered.forEach(c=>{const row=document.createElement('div');row.className='library-entry';const desc=document.createElement('span');textNode(desc,'strong',c.name||'Sans nom');textNode(desc,'div',(c.species||'Espèce inconnue')+' · '+c.family+' · Tier '+c.tier,'meta');row.appendChild(desc);const actions=document.createElement('div');[['Ouvrir',()=>{current=structuredClone(c);render();$('result').scrollIntoView({behavior:'smooth'})}],['JSON',()=>downloadJSON(c)],['Supprimer',()=>{if(confirm('Supprimer « '+c.name+' » ?')){store(getSaved().filter(x=>x.id!==c.id));showLibrary()}}]].forEach(([label,fn])=>{const b=document.createElement('button');b.className='secondary';b.textContent=label;b.onclick=fn;actions.appendChild(b)});row.appendChild(actions);out.appendChild(row)})}
+$('search').addEventListener('input',showLibrary);
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const c=JSON.parse(await file.text());if(!c||typeof c.name!=='string'||!Array.isArray(c.selected)||!Array.isArray(c.advantage)||!Array.isArray(c.disadvantage)||!traits[c.family]||![20,22,24,26,28].includes(c.base))throw Error('Format de fiche incompatible');c.id=Date.now()+'-'+rand(1000000);const list=getSaved();list.unshift(c);store(list);showLibrary();alert('Fiche importée.')}catch(err){alert('Import impossible : '+err.message)}e.target.value=''});
+showLibrary();
+</script><script>if ('serviceWorker' in navigator) {window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(err=>console.warn('Mode hors connexion indisponible :',err)));}</script></body></html>
